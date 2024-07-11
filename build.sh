@@ -8,12 +8,11 @@ apk add --no-cache gcc musl-dev
 mkdir -p ./build/Debug
 
 # Compila os arquivos fontes para criar a biblioteca compartilhada
-gcc -Wall -fPIC -c csv.processor.c -o ./build/Debug/csv.processor.o
-gcc -shared -o ./build/Debug/libcsv.so ./build/Debug/csv.processor.o
+gcc -Wall -fPIC -c libcsv.c -o ./build/Debug/libcsv.o
+gcc -shared -o ./build/Debug/libcsv.so ./build/Debug/libcsv.o
 
 # Copia a biblioteca compartilhada para /usr/lib
 cp ./build/Debug/libcsv.so /usr/lib/
 
 # Configura a variável de ambiente LD_LIBRARY_PATH para incluir /usr/lib
 export LD_LIBRARY_PATH=/usr/lib
-
