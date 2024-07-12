@@ -61,17 +61,62 @@ void freeSplitString(char **split, int count) {
     free(split);
 }
 
+// Função auxiliar para verificar se uma coluna é válida
+int isValidColumn(char **headers, int headerCount, const char *column) {
+    for (int i = 0; i < headerCount; i++) {
+        if (strcmp(headers[i], column) == 0) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// Função auxiliar para verificar se um filtro é válido
+int isValidFilter(char **headers, int headerCount, const char *filter, char **appliedFilters, int *appliedCount) {
+    char *filterCopy = strdup(filter);
+    if (!filterCopy) return 0;
+
+    char *column = strtok(filterCopy, "><!=<=>=");
+    char *value = strtok(NULL, "><!=<=>=");
+
+    if (!column || !value || (filter[strlen(column)] != '>' && filter[strlen(column)] != '<' && filter[strlen(column)] != '=' && filter[strlen(column)] != '!')) {
+        free(filterCopy);
+        return 0;
+    }
+
+    int valid = isValidColumn(headers, headerCount, column);
+
+    // Verifica se já existe um filtro aplicado para essa coluna
+    for (int i = 0; i < *appliedCount; i++) {
+        if (strcmp(appliedFilters[i], column) == 0) {
+            valid = 0;
+            break;
+        }
+    }
+
+    if (valid) {
+        appliedFilters[*appliedCount] = strdup(column);
+        (*appliedCount)++;
+    }
+
+    free(filterCopy);
+    return valid;
+}
+
 // Função auxiliar para verificar se uma linha atende aos filtros
 int rowMatchesFilters(char **headers, char **row, char **filters, int filterCount) {
+    int overallMatch = 1;
+
+    // Arrays para armazenar filtros por header
+    char *headerFilters[256][256] = {{NULL}};
+    int filterCounts[256] = {0};
+
+    // Distribui os filtros por header
     for (int i = 0; i < filterCount; i++) {
         char *filter = strdup(filters[i]);
-        if (!filter) return 0;
-
-        char *column = strtok(filter, "><=");
-        char *value = strtok(NULL, "><=");
-        char op = filters[i][strlen(column)];
-
+        char *column = strtok(filter, "><!=<=>=");
         int columnIndex = -1;
+
         for (int j = 0; headers[j] != NULL; j++) {
             if (strcmp(headers[j], column) == 0) {
                 columnIndex = j;
@@ -79,34 +124,73 @@ int rowMatchesFilters(char **headers, char **row, char **filters, int filterCoun
             }
         }
 
-        if (columnIndex == -1) {
-            free(filter);
-            continue;
-        }
-
-        char *rowValue = row[columnIndex];
-        int match = 0;
-        switch (op) {
-            case '>':
-                match = strcmp(rowValue, value) > 0;
-                break;
-            case '<':
-                match = strcmp(rowValue, value) < 0;
-                break;
-            case '=':
-                match = strcmp(rowValue, value) == 0;
-                break;
-            default:
-                match = 0;
-                break;
+        if (columnIndex != -1) {
+            headerFilters[columnIndex][filterCounts[columnIndex]++] = strdup(filters[i]);
         }
 
         free(filter);
-        if (!match) return 0;
     }
-    return 1;
+
+    // Verifica cada header
+    for (int i = 0; headers[i] != NULL; i++) {
+        if (filterCounts[i] == 0) continue;  // Sem filtros para este header
+
+        int headerMatch = 0;
+        for (int j = 0; j < filterCounts[i]; j++) {
+            char *filter = strdup(headerFilters[i][j]);
+            char *column = strtok(filter, "><!=<=>=");
+            char *value = strtok(NULL, "><!=<=>=");
+            char op1 = headerFilters[i][j][strlen(column)];
+            char op2 = headerFilters[i][j][strlen(column) + 1];
+
+            int columnIndex = i;
+            char *rowValue = row[columnIndex];
+            int match = 0;
+
+            switch (op1) {
+                case '>':
+                    match = (op2 == '=') ? (strcmp(rowValue, value) >= 0) : (strcmp(rowValue, value) > 0);
+                    break;
+                case '<':
+                    match = (op2 == '=') ? (strcmp(rowValue, value) <= 0) : (strcmp(rowValue, value) < 0);
+                    break;
+                case '=':
+                    match = (strcmp(rowValue, value) == 0);
+                    break;
+                case '!':
+                    match = (strcmp(rowValue, value) != 0);
+                    break;
+                default:
+                    match = 0;
+                    break;
+            }
+
+            free(filter);
+
+            if (match) {
+                headerMatch = 1; // Se qualquer filtro no mesmo header corresponder, o header é considerado correspondido
+                break;
+            }
+        }
+
+        if (!headerMatch) {
+            overallMatch = 0;
+            break;
+        }
+    }
+
+    // Limpeza
+    for (int i = 0; i < 256; i++) {
+        for (int j = 0; j < filterCounts[i]; j++) {
+            free(headerFilters[i][j]);
+        }
+    }
+
+    return overallMatch;
 }
 
+
+// Função para processar o CSV
 void processCsv(const char csv[], const char selectedColumns[], const char rowFilterDefinitions[]) {
     pthread_mutex_lock(&mutex);
 
@@ -208,6 +292,7 @@ void processCsv(const char csv[], const char selectedColumns[], const char rowFi
     pthread_mutex_unlock(&mutex);
 }
 
+// Função para processar um arquivo CSV
 void processCsvFile(const char csvFilePath[], const char selectedColumns[], const char rowFilterDefinitions[]) {
     FILE *file = fopen(csvFilePath, "r");
     if (!file) {
@@ -233,79 +318,3 @@ void processCsvFile(const char csvFilePath[], const char selectedColumns[], cons
 
     free(fileContent);
 }
-
-int isOrderCorrect(char **headers, int headerCount, char **items, int itemCount, int isFilter) {
-    int lastIndex = -1;
-    for (int i = 0; i < itemCount; i++) {
-        char *item = strdup(items[i]);
-        if (!item) return 0;
-
-        char *header;
-        if (isFilter) {
-            header = strtok(item, "><=");
-        } else {
-            header = item;
-        }
-
-        int foundIndex = -1;
-        for (int j = 0; j < headerCount; j++) {
-            if (strcmp(header, headers[j]) == 0) {
-                foundIndex = j;
-                break;
-            }
-        }
-
-        free(item);
-
-        if (foundIndex == -1 || (lastIndex != -1 && foundIndex < lastIndex)) {
-            return 0; // Ordem incorreta
-        }
-        lastIndex = foundIndex;
-    }
-    return 1; // Ordem correta
-}
-
-int isValidFilter(char **headers, int headerCount, const char *filter, char **appliedFilters, int *appliedCount) {
-    char *filterCopy = strdup(filter);
-    if (!filterCopy) return 0;
-
-    char *column = strtok(filterCopy, "><=");
-    char *value = strtok(NULL, "><=");
-
-    if (!column || !value || (filter[strlen(column)] != '>' && filter[strlen(column)] != '<' && filter[strlen(column)] != '=')) {
-        free(filterCopy);
-        return 0;
-    }
-
-    int valid = isValidColumn(headers, headerCount, column);
-
-    // Verifica se já existe um filtro aplicado para essa coluna
-    for (int i = 0; i < *appliedCount; i++) {
-        if (strcmp(appliedFilters[i], column) == 0) {
-            valid = 0;
-            break;
-        }
-    }
-
-    if (valid) {
-        appliedFilters[*appliedCount] = strdup(column);
-        (*appliedCount)++;
-    }
-
-    free(filterCopy);
-    return valid;
-}
-
-int isValidColumn(char **headers, int headerCount, const char *column) {
-    for (int i = 0; i < headerCount; i++) {
-        if (strcmp(headers[i], column) == 0) {
-            return 1;
-        }
-    }
-    return 0;
-}
-
-
-
-
-
