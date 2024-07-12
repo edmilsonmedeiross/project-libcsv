@@ -1,210 +1,132 @@
-# Processador de CSV
+# Biblioteca CSV
 
-Este desafio visa avaliar suas habilidades técnicas e capacidade de solucionar problemas reais, desenvolvendo uma biblioteca compartilhada ou _shared object_ (.so) que será utilizada por uma aplicação em C.
+## Descrição
 
-## Objetivo
+Esta biblioteca (`libcsv.so`) foi desenvolvida em C para processar arquivos CSV, aplicando filtros e selecionando colunas conforme especificado. A biblioteca oferece duas funções principais:
 
-Implementar uma biblioteca que processe arquivos CSV, aplicando filtros e selecionando colunas conforme especificado. A solução deve ser capaz de integrar com a interface definida em C abaixo.
+1. `void processCsv(const char csv[], const char selectedColumns[], const char rowFilterDefinitions[])`
+2. `void processCsvFile(const char csvFilePath[], const char selectedColumns[], const char rowFilterDefinitions[])`
 
-```c
-/**
- * Process the CSV data by applying filters and selecting columns.
- *
- * @param csv The CSV data to be processed.
- * @param selectedColumns The columns to be selected from the CSV data.
- * @param rowFilterDefinitions The filters to be applied to the CSV data.
- *
- * @return void
- */
-void processCsv(const char[], const char[], const char[]);
+A biblioteca pode ser utilizada para processar dados CSV diretamente de uma string ou de um arquivo, aplicando filtros e selecionando colunas conforme as necessidades do usuário.
 
-/**
- * Process the CSV file by applying filters and selecting columns.
- *
- * @param csvFilePath The path to the CSV file to be processed.
- * @param selectedColumns The columns to be selected from the CSV data.
- * @param rowFilterDefinitions The filters to be applied to the CSV data.
- *
- * @return void
- */
-void processCsvFile(const char[], const char[], const char[]);
-```
-processCsv
-- csv: String com os dados do CSV, onde cada linha representa um registro e as colunas são separadas por vírgulas.
-    - Exemplo: `"header1,header2,header3\n1,2,3\n4,5,6"`
-- selectedColumns: Uma string onde os nomes das colunas a serem selecionadas são separados por vírgulas.
-    - Exemplo: `"header1,header3"`
-- rowFilterDefinitions: Uma string onde cada filtro é definido em uma nova linha, no formato `header(comparador)valor`.
-    - Exemplo: `"header1>1\nheader2=2\nheader3<6"`
+## Funcionalidades
 
-processCsvFile
-- csvFilePath: String com o caminho do arquivo CSV.
-    - Exemplo: `"path/to/csv_file.csv"`
-- selectedColumns: Uma string onde os nomes das colunas a serem selecionadas são separados por vírgulas.
-    - Exemplo: `"header1,header3"`
-- rowFilterDefinitions: Uma string onde cada filtro é definido em uma nova linha, no formato `header(comparador)valor`.
-    - Exemplo: `"header1>1\nheader2=2\nheader3<6"`
+- ✅ Processamento de CSV a partir de uma string.
+- ✅ Processamento de CSV a partir de um arquivo.
+- ✅ Aplicação de filtros para seleção de linhas.
+- ✅ Seleção de colunas específicas.
+- ✅ Suporte para operadores de comparação: `>`, `<`, `=`, `!=`, `>=`, `<=`.
+- ✅ Testes para garantir funcionamento correto da biblioteca.
 
+## Clonando o Repositório
 
-Exemplo:
+Para clonar o repositório, execute o seguinte comando:
 
-```c
-const char csv[] = "header1,header2,header3\n1,2,3\n4,5,6\n7,8,9";
-processCsv(csv, "header1,header3", "header1>1\nheader3<8");
-
-// output
-// header1,header3
-// 4,6
-
-const char csv_file[] = "path/to/csv_file.csv";
-processCsvFile(csv_file, "header1,header3", "header1>1\nheader3<8");
-
-// output
-// header1,header3
-// 4,6
+```sh
+git clone <URL_DO_REPOSITORIO>
+cd <NOME_DO_REPOSITORIO>
 ```
 
-## Funcionalidades Obrigatórias e Requisitos
+## Executando o Script de Build
 
+O arquivo build.sh é um script que automatiza o processo de compilação, instalação e configuração da biblioteca compartilhada libcsv.so. Ele realiza várias etapas para garantir que a biblioteca e seus componentes estejam corretamente configurados no sistema. Abaixo está a descrição de cada etapa do script:
 
-O candidato deve focar nos requisitos obrigatórios, pois o descumprimento de qualquer um deles acarreta na desclassificação do processo seletivo.
+1. Atualiza o apt e instala o GCC e dependências necessárias: `sudo apt update` `sudo apt install`
+2. Cria o diretório de build se não existir: `mkdir -p ./build/Debug`
+3. Compila os arquivos fontes para criar a biblioteca compartilhada: `gcc -Wall -fPIC -c libcsv.c -o ./build/Debug/libcsv.o gcc -shared -o ./build/Debug/libcsv.so ./build/Debug/libcsv.o`
+4. Compila os testes: `gcc -Wall -Wextra -Wpedantic -Wshadow -Wformat=2 -Wcast-align -Wconversion -Wsign-conversion -Wnull-dereference -g3 -O0 -c test_libcsv_all.c -o ./build/Debug/test_libcsv_all.o gcc -Wall -Wextra -Wpedantic -Wshadow -Wformat=2 -Wcast-align -Wconversion -Wsign-conversion -Wnull-dereference -g3 -O0 ./build/Debug/libcsv.o ./build/Debug/test_libcsv_all.o -o ./build/Debug/test_libcsv_all -lcunit -lpthread`
+5. Copia a biblioteca compartilhada para /usr/local/lib: `sudo cp ./build/Debug/libcsv.so /usr/local/lib/`
+6. Copia o arquivo de cabeçalho para /usr/local/include: `sudo cp libcsv.h /usr/local/include/`
+7. Atualiza o cache das bibliotecas compartilhadas: `sudo ldconfig`
+8. Configura a variável de ambiente LD_LIBRARY_PATH para incluir /usr/local/lib: `export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH`
 
-Para os exemplos abaixo, considere sempre o seguinte CSV:
+### Instruções Adicionais para Usuários do WSL (Windows Subsystem for Linux)
 
-```csv
-header1,header2,header3
-1,2,3
-4,5,6
-7,8,9
+- Para usuários do WSL, todos os comandos e instruções acima são aplicáveis da mesma forma. No entanto, certifique-se de estar executando o WSL com privilégios de superusuário (root) quando necessário, especialmente ao instalar pacotes e copiar arquivos para diretórios do sistema (`/usr/local/lib` e `/usr/local/include`).
+
+- 💡 Para executar o build automático execute o comando abaixo
+
+```sh
+./build.sh
 ```
 
-- **O CSV processado deve ser escrito no stdout**
+- 💡 Para rodar os testes unitários execute o comando abaixo
 
-- **A primeira linha do CSV sempre será um header**
-
-- **O CSV processado deverá incluir o header do CSV considerando a seleção de coluna**
-
-- **A sua implementação deve tratar CSVs com quantidades arbitrárias de caractéres**
-
-- **A sua implementação deve tratar CSVs onde as colunas tem quantidades arbitrárias de caractéres**
-
-- **Uma string de seleção de colunas vazia é equivalente a selecionar todas as colunas**
-
-- **No mínimo, o candidato deve implementar filtros para maior (>), menor (<) e igual (=)**
-
-- **As strings de seleção de colunas e filtro sempre terão a mesma ordem que aparecem no CSV**
-
-    Exemplo:
-    - `"header1,header3"` ou `"header1=4\nheader3>3"` &rarr; OK
-    - `"header3,header1"` ou `"header3>3\nheader1=4"` &rarr; NÃO OK
-
-- **Vírgulas sempre delimitam uma coluna, aspas não têm nenhuma interpretação especial**
-
-    Exemplo: No CSV abaixo, o nome da primeira coluna é `'hea"der1'`
-
-    ```csv
-    hea"der1,header2,header3
-    1,2,3
-    ```
-
-- **Apenas linhas que condizem com todos os filtros devem ser selecionadas**
-
-    Exemplo: Aplicando os filtros `"header1=4\nheader2>3"` e selecionando as colunas header1 e header3. Somente a linha 4,5,6 `(header1 = 4 AND header2 > 3)` deve ser selecionada, pois todas as condições dos filtros devem ser atendidas. Output do filtro abaixo:
-
-    ```csv
-    header1,header3
-    4,6
-    ```
-
-- **Nunca serão fornecidos filtros inválidos ou colunas inexistentes**
-
-    Exemplo:
-    - Coluna inexistente: `"header4"`
-    - Filtro inválido: `"header1#2"`
-
-- **Nunca será fornecido mais de 1 filtro por coluna**
-
-    Exemplo: Se o filtro for `"header1=2"`, não haverá outro filtro para `"header1"` na mesma operação.
-
-- **O CSV de entrada terá no máximo 256 colunas**
-
-- **O nome de cada coluna é único**
-
-- **Os comparadores nos filtros devem seguir a ordem lexicográfica conforme a implementação da [strcmp](https://www.man7.org/linux/man-pages/man3/strcmp.3.html) da stdlibc**
-
-- **A arquitetura alvo é x86_64**
-
-- **Não é permitida a execução de processos externos. Seu código não deve usar chamadas de sistema para executar outros programas**
-
-- **Não é permitido o uso de bibliotecas externas para converter o CSV em estruturas de dados intermediárias (libs de lexers e tokenizers podem ser utilizadas)**
-
-
-## Funcionalidades Bônus
-
-Se o candidato terminar todos os pontos obrigatórios e ainda dispor de tempo livre, a seguir estão algumas funcionalidades bônus que contarão como critério de desempate.
-
-Para todos os exemplos abaixo, considere sempre o seguinte CSV:
-```csv
-header1,header2,header3
-1,2,3
-4,5,6
-7,8,9
+```sh
+./build/Debug/test_libcsv_all
 ```
 
-1) **Desenvolver testes unitários**
-2) **As colunas que aparecem na string de colunas selecionadas podem estar em ordem arbitrária**
-    Exemplo: Se a string de colunas selecionadas é `"header3,header1"`, sua implementação deve selecionar as colunas nesta ordem.
+### Seguindo essas instruções, você deve ser capaz de utilizar a biblioteca libcsv.so para processar arquivos CSV conforme necessário
 
-    ```csv
-    header1,header2,header3
-    1,2,3
-    4,5,6
-    7,8,9
-    ```
+1. Crie um projeto de testes qualquer e tente usar a biblioteca conforme a foto abaixo:
 
-    E a string de colunas selecionadas: `"header3,header1"`, o resultado deve ser:
+![imagem_teste](assets/projeto_teste.png)
 
-    ```csv
-    header1, header3
-    1,3
-    4,6
-    7,9
-    ```
+🚨 **Atenção**: Caso o passo acima tenha dado errado siga as instruções abaixo para realizar o procedimento manualmente
 
-3) **As colunas na string de filtros podem aparecer em ordem arbitrária**
+## Instalando Dependências Manualmente
 
-    Se os filtros são fornecidos como `"header2>3\nheader1=4"`, sua implementação deve aplicar esses filtros corretamente, independentemente da ordem, conforme output abaixo:
+1. Atualize o apt e instale o GCC e dependências necessárias:
 
-    ```csv
-    header1,header2,header3
-    4,5,6
-    ```
+```sh
+sudo apt update
+sudo apt install -y gcc libcunit1-dev make
+```
 
-4) **Colunas que não existem podem aparecer na seleção de colunas e nos filtros**
+2. Crie o diretório de build:
 
-    Se a string de colunas selecionadas inclui `"header4"` e o CSV não tem um header header4, ou se os filtros incluem `"header5=10"` e o CSV não tem um header header5, sua implementação deve tratar esses casos adequadamente, escrevendo no stderr com a mensagem `"Header 'header4' not found in CSV file/string"` ou `"Header 'header5' not found in CSV file/string"`, respectivamente, encerrando a execução.
+```sh
+mkdir -p ./build/Debug
+```
 
+3. Compile os arquivos fontes para criar a biblioteca compartilhada:
 
-5) **Tratamento de erro para filtros inválidos**
+```sh
+gcc -Wall -fPIC -c libcsv.c -o ./build/Debug/libcsv.o
+gcc -shared -o ./build/Debug/libcsv.so ./build/Debug/libcsv.o
+```
 
-    Se for fornecido um filtro inexistente ou inválido, como `header1#2`, sua implementação deve tratar esses casos escrevendo no stderr com a mensagem `"Invalid filter: 'header1#2'"`.
+4. Compile os testes:
 
-6) **Aceitar mais de 1 filtro por header**
+```sh
+gcc -Wall -Wextra -Wpedantic -Wshadow -Wformat=2 -Wcast-align -Wconversion -Wsign-conversion -Wnull-dereference -g3 -O0 -c test_libcsv_all.c -o ./build/Debug/test_libcsv_all.o
+gcc -Wall -Wextra -Wpedantic -Wshadow -Wformat=2 -Wcast-align -Wconversion -Wsign-conversion -Wnull-dereference -g3 -O0 ./build/Debug/libcsv.o ./build/Debug/test_libcsv_all.o -o ./build/Debug/test_libcsv_all -lcunit -lpthread
+```
 
-    Permitir que múltiplos filtros sejam aplicados a um mesmo header, como `"header1=1\nheader1=4\nheader2>3\nheader3>4"`, e tratar esses filtros de forma adequada. Para essa implementação, o candidato deverá implementar a lógica OR para filtros no mesmo header.
-    O filtro de exemplo será considerado como: `(header1=1 OR header1=4) AND header2>3 AND header3>4`, resultando no output abaixo:
+5. Copie a biblioteca compartilhada e o arquivo de cabeçalho para os diretórios apropriados:
 
-    ```csv
-    header1,header2,header3
-    4,5,6
-    ```
+```sh
+sudo cp ./build/Debug/libcsv.so /usr/local/lib/
+sudo cp libcsv.h /usr/local/include/
+sudo ldconfig
+```
 
-7) **Implementar os operadores diferente (!=), Maior ou igual que (>=), e Menor ou igual que (<=)**
+6. Defina a variável de ambiente LD_LIBRARY_PATH para incluir /usr/local/lib:
 
-    Permitir que filtros utilizem operadores de diferença, maior ou igual, e menor ou igual, como `"header1!=2\nheader2>=5\nheader3<=6"`, e tratar esses filtros de forma adequada resultando no output abaixo:
+```sh
+export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
+```
 
-    ```csv
-    header1,header2,header3
-    4,5,6
-    ```
----
+7. Compile o seu programa de teste:
+
+```sh
+gcc -Wall -o ./build/Debug/test_program nome_do_seu_arquivo.c -lcsv -lpthread
+```
+
+8. Execute o seu programa com a biblioteca:
+
+```sh
+./build/Debug/test_program
+```
+
+- Exemplo de um programa de teste usando a biblioteca compartilhada libcsv.so
+
+![exemplo_teste](assets/projeto_teste.png)
+
+✅ Seguindo todas as instruções desse Readme você deve ser capaz de executar as funções processCsv e processCsvFile em seus projetos.
+
+- 💡 Se você executou o passo a passo manualmente, você também pode executar os testes unitários através do comando abaixo.
+
+```sh
+./build/Debug/test_libcsv_all
+```
