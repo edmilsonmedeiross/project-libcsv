@@ -7,6 +7,22 @@
 // Mutex para garantir a segurança entre threads
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
+// Define a estrutura Filter
+typedef struct {
+    int columnIndex;
+    char operation[3];
+    char *value;
+} Filter;
+
+// Declaração das funções auxiliares
+int isValidColumn(char **headers, int headerCount, const char *column);
+int isValidFilter(char **headers, int headerCount, const char *filter);
+char **splitString(const char *str, const char *delimiter, int *count);
+void freeSplitString(char **split, int count);
+Filter *extractFilters(const char *filterStr, char **headers, int headerCount, int *filterCount);
+void freeFilters(Filter *filters, int filterCount);
+int rowMatchesFilters(char **headers, char **row, Filter *filters, int filterCount);
+
 // Função auxiliar para dividir uma string em partes com base em um delimitador
 char **splitString(const char *str, const char *delimiter, int *count) {
     char *copy = strdup(str);
@@ -68,127 +84,125 @@ int isValidColumn(char **headers, int headerCount, const char *column) {
             return 1;
         }
     }
+    fprintf(stderr, "Header '%s' not found in CSV file/string", column);
     return 0;
 }
 
+
+
 // Função auxiliar para verificar se um filtro é válido
-int isValidFilter(char **headers, int headerCount, const char *filter, char **appliedFilters, int *appliedCount) {
+int isValidFilter(char **headers, int headerCount, const char *filter) {
     char *filterCopy = strdup(filter);
-    if (!filterCopy) return 0;
-
-    char *column = strtok(filterCopy, "><!=<=>=");
-    char *value = strtok(NULL, "><!=<=>=");
-
-    if (!column || !value || (filter[strlen(column)] != '>' && filter[strlen(column)] != '<' && filter[strlen(column)] != '=' && filter[strlen(column)] != '!')) {
-        free(filterCopy);
+    if (!filterCopy) {
+        fprintf(stderr, "Memory allocation error\n");
         return 0;
     }
 
-    int valid = isValidColumn(headers, headerCount, column);
+    char *column = strtok(filterCopy, "><!=<=>=");
+    char *value = strtok(NULL, "><!=<=>=");
+    int valid = column && value && (strchr(filter, '>') || strchr(filter, '<') || strchr(filter, '=') || strchr(filter, '!')) && isValidColumn(headers, headerCount, column);
 
-    // Verifica se já existe um filtro aplicado para essa coluna
-    for (int i = 0; i < *appliedCount; i++) {
-        if (strcmp(appliedFilters[i], column) == 0) {
-            valid = 0;
-            break;
-        }
-    }
-
-    if (valid) {
-        appliedFilters[*appliedCount] = strdup(column);
-        (*appliedCount)++;
+    if (!valid) {
+        fprintf(stderr, "Invalid filter: '%s'\n", filter);
     }
 
     free(filterCopy);
     return valid;
 }
 
-// Função auxiliar para verificar se uma linha atende aos filtros
-int rowMatchesFilters(char **headers, char **row, char **filters, int filterCount) {
-    int overallMatch = 1;
+// Função auxiliar para extrair filtros de uma string de definição de filtro
+Filter *extractFilters(const char *filterStr, char **headers, int headerCount, int *filterCount) {
+    int count;
+    char **filterStrings = splitString(filterStr, "\n", &count);
+    Filter *filters = (Filter *)malloc(count * sizeof(Filter));
 
-    // Arrays para armazenar filtros por header
-    char *headerFilters[256][256] = {{NULL}};
-    int filterCounts[256] = {0};
+    for (int i = 0; i < count; i++) {
+        if (!isValidFilter(headers, headerCount, filterStrings[i])) {
+            free(filters);
+            *filterCount = 0;
+            freeSplitString(filterStrings, count);
+            return NULL;
+        }
 
-    // Distribui os filtros por header
-    for (int i = 0; i < filterCount; i++) {
-        char *filter = strdup(filters[i]);
-        char *column = strtok(filter, "><!=<=>=");
+        char *filter = strdup(filterStrings[i]);
+        char *column = strtok(filter, "><=!");
+        char *value = strtok(NULL, "><=!");
+        char operation[3] = {0};
+
+        if (strstr(filterStrings[i], ">=")) {
+            strcpy(operation, ">=");
+        } else if (strstr(filterStrings[i], "<=")) {
+            strcpy(operation, "<=");
+        } else {
+            operation[0] = filterStrings[i][strlen(column)];
+        }
+
         int columnIndex = -1;
-
-        for (int j = 0; headers[j] != NULL; j++) {
+        for (int j = 0; j < headerCount; j++) {
             if (strcmp(headers[j], column) == 0) {
                 columnIndex = j;
                 break;
             }
         }
 
-        if (columnIndex != -1) {
-            headerFilters[columnIndex][filterCounts[columnIndex]++] = strdup(filters[i]);
+        if (columnIndex == -1) {
+            fprintf(stderr,"c");
+            free(filters);
+            *filterCount = 0;
+            free(filter);
+            freeSplitString(filterStrings, count);
+            return NULL;
         }
 
+        filters[i].columnIndex = columnIndex;
+        strcpy(filters[i].operation, operation);
+        filters[i].value = strdup(value);
         free(filter);
     }
 
-    // Verifica cada header
-    for (int i = 0; headers[i] != NULL; i++) {
-        if (filterCounts[i] == 0) continue;  // Sem filtros para este header
-
-        int headerMatch = 0;
-        for (int j = 0; j < filterCounts[i]; j++) {
-            char *filter = strdup(headerFilters[i][j]);
-            char *column = strtok(filter, "><!=<=>=");
-            char *value = strtok(NULL, "><!=<=>=");
-            char op1 = headerFilters[i][j][strlen(column)];
-            char op2 = headerFilters[i][j][strlen(column) + 1];
-
-            int columnIndex = i;
-            char *rowValue = row[columnIndex];
-            int match = 0;
-
-            switch (op1) {
-                case '>':
-                    match = (op2 == '=') ? (strcmp(rowValue, value) >= 0) : (strcmp(rowValue, value) > 0);
-                    break;
-                case '<':
-                    match = (op2 == '=') ? (strcmp(rowValue, value) <= 0) : (strcmp(rowValue, value) < 0);
-                    break;
-                case '=':
-                    match = (strcmp(rowValue, value) == 0);
-                    break;
-                case '!':
-                    match = (strcmp(rowValue, value) != 0);
-                    break;
-                default:
-                    match = 0;
-                    break;
-            }
-
-            free(filter);
-
-            if (match) {
-                headerMatch = 1; // Se qualquer filtro no mesmo header corresponder, o header é considerado correspondido
-                break;
-            }
-        }
-
-        if (!headerMatch) {
-            overallMatch = 0;
-            break;
-        }
-    }
-
-    // Limpeza
-    for (int i = 0; i < 256; i++) {
-        for (int j = 0; j < filterCounts[i]; j++) {
-            free(headerFilters[i][j]);
-        }
-    }
-
-    return overallMatch;
+    freeSplitString(filterStrings, count);
+    *filterCount = count;
+    return filters;
 }
 
+// Libera a memória alocada para filtros
+void freeFilters(Filter *filters, int filterCount) {
+    for (int i = 0; i < filterCount; i++) {
+        free(filters[i].value);
+    }
+    free(filters);
+}
+
+// Função auxiliar para verificar se uma linha atende aos filtros
+int rowMatchesFilters(char **headers, char **row, Filter *filters, int filterCount) {
+    for (int i = 0; i < filterCount; i++) {
+        int columnIndex = filters[i].columnIndex;
+        char *rowValue = row[columnIndex];
+        int match = 0;
+
+        if (strcmp(filters[i].operation, ">=") == 0) {
+            match = (strcmp(rowValue, filters[i].value) >= 0);
+        } else if (strcmp(filters[i].operation, "<=") == 0) {
+            match = (strcmp(rowValue, filters[i].value) <= 0);
+        } else if (filters[i].operation[0] == '>') {
+            match = (strcmp(rowValue, filters[i].value) > 0);
+        } else if (filters[i].operation[0] == '<') {
+            match = (strcmp(rowValue, filters[i].value) < 0);
+        } else if (filters[i].operation[0] == '=') {
+            match = (strcmp(rowValue, filters[i].value) == 0);
+        } else if (filters[i].operation[0] == '!') {
+            match = (strcmp(rowValue, filters[i].value) != 0);
+        } else {
+            fprintf(stderr, "Invalid filter: '%s%c%s'\n", headers[columnIndex], filters[i].operation[0], filters[i].value);
+            return 0;
+        }
+
+        if (!match) {
+            return 0;
+        }
+    }
+    return 1;
+}
 
 // Função para processar o CSV
 void processCsv(const char csv[], const char selectedColumns[], const char rowFilterDefinitions[]) {
@@ -202,63 +216,47 @@ void processCsv(const char csv[], const char selectedColumns[], const char rowFi
     }
 
     char **headers = splitString(rows[0], ",", &headerCount);
-
-    // Verifica o número de colunas
-    if (headerCount > 256) {
-        freeSplitString(rows, rowCount);
-        freeSplitString(headers, headerCount);
-        pthread_mutex_unlock(&mutex);
-        return;
-    }
-
-    // Verifica se selectedColumns está vazio
     char **selectedCols;
     if (strlen(selectedColumns) == 0) {
-        selectedCols = headers; // Se estiver vazio, seleciona todas as colunas
+        selectedCols = headers; // Se selectedColumns estiver vazio, seleciona todas as colunas
         selectedCount = headerCount;
     } else {
         selectedCols = splitString(selectedColumns, ",", &selectedCount);
-        for (int i = 0; i < selectedCount; i++) {
-            if (!isValidColumn(headers, headerCount, selectedCols[i])) {
-                freeSplitString(rows, rowCount);
-                freeSplitString(headers, headerCount);
-                freeSplitString(selectedCols, selectedCount);
-                pthread_mutex_unlock(&mutex);
-                return;
-            }
-        }
     }
-
-    char **filters = splitString(rowFilterDefinitions, "\n", &filterCount);
-    char *appliedFilters[256] = {0};
-    int appliedCount = 0;
-    for (int i = 0; i < filterCount; i++) {
-        if (!isValidFilter(headers, headerCount, filters[i], appliedFilters, &appliedCount)) {
-            freeSplitString(rows, rowCount);
-            freeSplitString(headers, headerCount);
-            if (selectedCols != headers) freeSplitString(selectedCols, selectedCount);
-            freeSplitString(filters, filterCount);
-            for (int j = 0; j < appliedCount; j++) {
-                free(appliedFilters[j]);
-            }
-            pthread_mutex_unlock(&mutex);
-            return;
-        }
-    }
+    Filter *filters = extractFilters(rowFilterDefinitions, headers, headerCount, &filterCount);
 
     if (!headers || !selectedCols || !filters) {
         freeSplitString(rows, rowCount);
         if (headers) freeSplitString(headers, headerCount);
         if (selectedCols && selectedCols != headers) freeSplitString(selectedCols, selectedCount);
-        if (filters) freeSplitString(filters, filterCount);
+        if (filters) freeFilters(filters, filterCount);
         pthread_mutex_unlock(&mutex);
         return;
     }
 
-    // Imprime os cabeçalhos selecionados
-    for (int j = 0; j < selectedCount; j++) {
-        printf("%s", selectedCols[j]);
-        if (j < selectedCount - 1) printf(",");
+    // Verifica se todos os selectedCols existem nos headers
+    for (int i = 0; i < selectedCount; i++) {
+        if (!isValidColumn(headers, headerCount, selectedCols[i])) {
+            freeSplitString(rows, rowCount);
+            freeSplitString(headers, headerCount);
+            if (selectedCols != headers) freeSplitString(selectedCols, selectedCount);
+            freeFilters(filters, filterCount);
+            pthread_mutex_unlock(&mutex);
+            return;
+        }
+    }
+
+    // Print headers in the order of CSV
+    int printedHeaders = 0;
+    for (int j = 0; j < headerCount; j++) {
+        for (int k = 0; k < selectedCount; k++) {
+            if (strcmp(headers[j], selectedCols[k]) == 0) {
+                if (printedHeaders > 0) printf(",");
+                printf("%s",headers[j]);
+                printedHeaders++;
+                break;
+            }
+        }
     }
     printf("\n");
 
@@ -269,11 +267,14 @@ void processCsv(const char csv[], const char selectedColumns[], const char rowFi
             continue;
         }
 
-        for (int j = 0; j < selectedCount; j++) {
-            for (int k = 0; k < headerCount; k++) {
-                if (strcmp(selectedCols[j], headers[k]) == 0) {
-                    printf("%s", row[k]);
-                    if (j < selectedCount - 1) printf(",");
+        // Print row values in the order of CSV
+        int printedValues = 0;
+        for (int j = 0; j < headerCount; j++) {
+            for (int k = 0; k < selectedCount; k++) {
+                if (strcmp(headers[j], selectedCols[k]) == 0) {
+                    if (printedValues > 0) printf(",");
+                    printf("%s",row[j]);
+                    printedValues++;
                     break;
                 }
             }
@@ -283,12 +284,9 @@ void processCsv(const char csv[], const char selectedColumns[], const char rowFi
     }
 
     freeSplitString(rows, rowCount);
-    freeSplitString(headers, headerCount);
     if (selectedCols != headers) freeSplitString(selectedCols, selectedCount);
-    freeSplitString(filters, filterCount);
-    for (int i = 0; i < appliedCount; i++) {
-        free(appliedFilters[i]);
-    }
+    freeSplitString(headers, headerCount);
+    freeFilters(filters, filterCount);
     pthread_mutex_unlock(&mutex);
 }
 
