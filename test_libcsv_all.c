@@ -113,6 +113,28 @@ void test_processCsv_nonexistent_columns_and_headers_filters(void) {
     CU_ASSERT_STRING_EQUAL(error_output, "Header 'header4' not found in CSV file/string\nHeader 'header5' not found in CSV file/string\n");
 }
 
+// Teste para multiplos filtros no mesmo header
+void test_processCsv_multiple_filters(void) {
+    const char csv[] = "header1,header2,header3\n1,2,3\n4,5,6\n7,8,9";
+    char output[1024] = {0};
+    redirect_stdout(output);
+    processCsv(csv, "header1,header3", "header1>1\nheader1<7\nheader3>3\nheader3<9");
+    restore_stdout();
+
+    CU_ASSERT_STRING_EQUAL(output, "header1,header3\n1,3\n4,6\n7,9\n");
+}
+
+// teste processCsv multiplos filtros no mesmo header Readme
+void test_processCsv_multiple_filters_readme(void) {
+    const char csv[] = "header1,header2,header3\n1,2,3\n4,5,6\n7,8,9";
+    char output[1024] = {0};
+    redirect_stdout(output);
+    processCsv(csv, "", "header1=1\nheader1=4\nheader2>3\nheader3>4");
+    restore_stdout();
+
+    CU_ASSERT_STRING_EQUAL(output, "header1,header2,header3\n4,5,6\n");
+}
+
 // Teste para filtros inexistentes
 void test_processCsv_invalid_filters(void) {
     const char csv[] = "header1,header2,header3\n1,2,3\n4,5,6\n7,8,9";
@@ -256,6 +278,8 @@ int main() {
     CU_add_test(suite, "test of processCsv_arbitrary_filters", test_processCsv_arbitrary_filters);
     CU_add_test(suite, "test of processCsv_nonexistent_columns", test_processCsv_nonexistent_columns);
     CU_add_test(suite, "test of processCsv_invalid_filters", test_processCsv_invalid_filters);
+    CU_add_test(suite, "test of processCsv_multiple_filters", test_processCsv_multiple_filters);
+    CU_add_test(suite, "test of processCsv_multiple_filters_readme", test_processCsv_multiple_filters_readme);
     CU_add_test(suite, "test of processCsv_nonexistent_columns_and_headers_filters", test_processCsv_nonexistent_columns_and_headers_filters);
     CU_add_test(suite, "test of processCsv_operators", test_processCsv_operators);
     CU_add_test(suite, "test of processCsv_quoted_headers", test_processCsv_quoted_headers);
