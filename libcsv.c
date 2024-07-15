@@ -21,7 +21,7 @@ int isValidColumn(char **headers, int headerCount, const char *column, char *err
 int isValidFilter(char **headers, int headerCount, const char *filter, char *errorBuffer);
 Filter *extractFilters(const char *filterStr, char **headers, int headerCount, int *filterCount);
 void freeFilters(Filter *filters, int filterCount);
-int rowMatchesFilters(char **headers, char **row, Filter *filters, int filterCount);
+int rowMatchesFilters(char **headers, char **row, Filter *filters, int filterCount,  int headerCount);
 
 
 // Função auxiliar para dividir uma string em partes com base em um delimitador
@@ -100,9 +100,6 @@ int isValidFilter(char **headers, int headerCount, const char *filter, char *err
     // Encontrar a posição do operador
     char *operatorPos = strpbrk(filterCopy, "><!=");
 
-    // printf("value 1: %s \n", operatorPos);
-    // printf("value 2: %c \n", operatorPos[0]);
-    // printf("value 3: %c \n", operatorPos[1]);
     if (!operatorPos) {
         sprintf(errorBuffer + strlen(errorBuffer), "Invalid filter: '%s'\n", filter);
         free(filterCopy);
@@ -216,7 +213,13 @@ void freeFilters(Filter *filters, int filterCount) {
 }
 
 // Função auxiliar para verificar se uma linha atende aos filtros
-int rowMatchesFilters(char **headers, char **row, Filter *filters, int filterCount) {
+int rowMatchesFilters(char **headers, char **row, Filter *filters, int filterCount, int headerCount) {
+    // printf("Debugging rowMatchesFilters:\n");
+
+    int *columnMatches = (int *)malloc(headerCount * sizeof(int));
+    memset(columnMatches, 0, headerCount * sizeof(int));
+
+    // Agrupar filtros por coluna
     for (int i = 0; i < filterCount; i++) {
         int columnIndex = filters[i].columnIndex;
         char *rowValue = row[columnIndex];
@@ -236,17 +239,30 @@ int rowMatchesFilters(char **headers, char **row, Filter *filters, int filterCou
             match = (strcmp(rowValue, filters[i].value) != 0);
         } else {
             fprintf(stderr, "Invalid filter: '%s%c%s'\n", headers[columnIndex], filters[i].operation[0], filters[i].value);
+            free(columnMatches);
             return 0;
         }
 
-        if (!match) {
+        // Se um filtro corresponder, marque a coluna como correspondida
+        if (match) {
+            columnMatches[columnIndex] = 1;
+        }
+    }
+
+    // Verifique se todas as colunas têm pelo menos um filtro correspondente
+    for (int i = 0; i < filterCount; i++) {
+        int columnIndex = filters[i].columnIndex;
+        if (columnMatches[columnIndex] == 0) {
+            free(columnMatches);
             return 0;
         }
     }
+
+    free(columnMatches);
     return 1;
 }
 
-// Função para processar o CSV
+// função para processar string Csv
 void processCsv(const char csv[], const char selectedColumns[], const char rowFilterDefinitions[]) {
     pthread_mutex_lock(&mutex);
 
@@ -260,7 +276,7 @@ void processCsv(const char csv[], const char selectedColumns[], const char rowFi
     char **headers = splitString(rows[0], ",", &headerCount);
     char **selectedCols;
     if (strlen(selectedColumns) == 0) {
-        selectedCols = headers; // Se selectedColumns estiver vazio, seleciona todas as colunas
+        selectedCols = headers;
         selectedCount = headerCount;
     } else {
         selectedCols = splitString(selectedColumns, ",", &selectedCount);
@@ -268,6 +284,7 @@ void processCsv(const char csv[], const char selectedColumns[], const char rowFi
 
     char errorBuffer[1024] = {0};
     validateHeadersAndFilters(selectedColumns, rowFilterDefinitions, headers, headerCount, errorBuffer);
+
     if (strlen(errorBuffer) > 0) {
         fprintf(stderr, "%s", errorBuffer);
         freeSplitString(rows, rowCount);
@@ -286,6 +303,7 @@ void processCsv(const char csv[], const char selectedColumns[], const char rowFi
         return;
     }
 
+    // Imprime os headers selecionados na ordem do CSV
     int printedHeaders = 0;
     for (int j = 0; j < headerCount; j++) {
         for (int k = 0; k < selectedCount; k++) {
@@ -302,11 +320,12 @@ void processCsv(const char csv[], const char selectedColumns[], const char rowFi
     for (int i = 1; i < rowCount; i++) {
         int rowColumnCount;
         char **row = splitString(rows[i], ",", &rowColumnCount);
-        if (!rowMatchesFilters(headers, row, filters, filterCount)) {
+        if (!rowMatchesFilters(headers, row, filters, filterCount, headerCount)) {
             freeSplitString(row, rowColumnCount);
             continue;
         }
 
+        // Imprime os valores da linha na ordem dos headers, selecionados
         int printedValues = 0;
         for (int j = 0; j < headerCount; j++) {
             for (int k = 0; k < selectedCount; k++) {
@@ -328,7 +347,6 @@ void processCsv(const char csv[], const char selectedColumns[], const char rowFi
     freeFilters(filters, filterCount);
     pthread_mutex_unlock(&mutex);
 }
-
 
 // Função para processar um arquivo CSV
 void processCsvFile(const char csvFilePath[], const char selectedColumns[], const char rowFilterDefinitions[]) {
