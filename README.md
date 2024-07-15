@@ -2,7 +2,7 @@
 
 ## Descrição
 
-Esta biblioteca (`libcsv.so`) foi desenvolvida em C para processar arquivos CSV, aplicando filtros e selecionando colunas conforme especificado. A biblioteca oferece duas funções principais:
+Esta biblioteca (`libcsv.so`) foi desenvolvida em C para processar arquivos CSV ou strings de arquivos CSV, aplicando filtros e selecionando colunas conforme especificado. A biblioteca oferece duas funções principais:
 
 1. `void processCsv(const char csv[], const char selectedColumns[], const char rowFilterDefinitions[])`
 2. `void processCsvFile(const char csvFilePath[], const char selectedColumns[], const char rowFilterDefinitions[])`
@@ -15,8 +15,11 @@ A biblioteca pode ser utilizada para processar dados CSV diretamente de uma stri
 - ✅ Processamento de CSV a partir de um arquivo.
 - ✅ Aplicação de filtros para seleção de linhas.
 - ✅ Seleção de colunas específicas.
+- ✅ Tratamento de erro para cabeçalhos e filtros inexistentes ou inválidos
 - ✅ Suporte para operadores de comparação: `>`, `<`, `=`, `!=`, `>=`, `<=`.
 - ✅ Testes para garantir funcionamento correto da biblioteca.
+
+## Para utilizar a biblioteca primeiramente é necessário clonar o repositório
 
 ## Clonando o Repositório
 
@@ -56,6 +59,10 @@ O arquivo build.sh é um script que automatiza o processo de compilação, insta
 ./build/Debug/test_libcsv_all
 ```
 
+- Após rodar o script de testes você deve ver uma tela parecida com essa:
+
+![testes_unitarios](assets/testes_unitarios.png)
+
 ### Seguindo essas instruções, você deve ser capaz de utilizar a biblioteca libcsv.so para processar arquivos CSV conforme necessário
 
 1. Crie um projeto de testes qualquer e tente usar a biblioteca conforme a foto abaixo:
@@ -65,6 +72,14 @@ O arquivo build.sh é um script que automatiza o processo de compilação, insta
 🚨 **Atenção**: Caso o passo acima tenha dado errado siga as instruções abaixo para realizar o procedimento manualmente
 
 ## Instalando Dependências Manualmente
+
+🚨 **Atenção**: Certifique-se de estar na pasta raiz do repositório:
+
+**exemplo:**
+
+```sh
+home/<seu_usuario>/<nome_do_repositorio>
+```
 
 1. Atualize o apt e instale o GCC e dependências necessárias:
 
