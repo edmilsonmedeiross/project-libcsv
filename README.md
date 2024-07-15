@@ -15,8 +15,9 @@ A biblioteca pode ser utilizada para processar dados CSV diretamente de uma stri
 - ✅ Processamento de CSV a partir de um arquivo.
 - ✅ Aplicação de filtros para seleção de linhas.
 - ✅ Seleção de colunas específicas.
-- ✅ Tratamento de erro para cabeçalhos e filtros inexistentes ou inválidos
+- ✅ Tratamento de erro para cabeçalhos e filtros inexistentes ou inválidos.
 - ✅ Suporte para operadores de comparação: `>`, `<`, `=`, `!=`, `>=`, `<=`.
+- ✅ Suporte para multiplos filtros para o mesmo header (cabeçalho).
 - ✅ Testes para garantir funcionamento correto da biblioteca.
 
 ## Para utilizar a biblioteca primeiramente é necessário clonar o repositório
