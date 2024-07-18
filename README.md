@@ -138,7 +138,7 @@ gcc -Wall -o ./build/Debug/test_program nome_do_seu_arquivo.c -lcsv -lpthread
 
 - Exemplo de um programa de teste usando a biblioteca compartilhada libcsv.so
 
-![exemplo_teste](assets/projeto_teste.png)
+![Captura de tela 2024-07-12 001557](https://github.com/user-attachments/assets/aae5713c-b1da-43dd-8394-a9769f68c437)
 
 ✅ Seguindo todas as instruções desse Readme você deve ser capaz de executar as funções processCsv e processCsvFile em seus projetos.
 
