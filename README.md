@@ -62,13 +62,14 @@ O arquivo build.sh é um script que automatiza o processo de compilação, insta
 
 - Após rodar o script de testes você deve ver uma tela parecida com essa:
 
-![testes_unitarios](assets/testes_unitarios.png)
+![testes_unitarios](https://github.com/user-attachments/assets/0b9af724-4bb8-4194-92f9-743cbeb6f2a0)
 
 ### Seguindo essas instruções, você deve ser capaz de utilizar a biblioteca libcsv.so para processar arquivos CSV conforme necessário
 
 1. Crie um projeto de testes qualquer e tente usar a biblioteca conforme a foto abaixo:
 
-![imagem_teste](assets/projeto_teste.png)
+![Captura de tela 2024-07-12 001557](https://github.com/user-attachments/assets/34663e38-7189-4808-9f15-202bdf2efc83)
+
 
 🚨 **Atenção**: Caso o passo acima tenha dado errado siga as instruções abaixo para realizar o procedimento manualmente
 
